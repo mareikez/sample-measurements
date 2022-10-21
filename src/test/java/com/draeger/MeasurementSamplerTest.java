@@ -32,19 +32,17 @@ class MeasurementSamplerTest {
 
         List<Measurement> input = Arrays.asList(measurement1, measurement2, measurement3, measurement4, measurement5, measurement6, measurement7);
 
-        Measurement sample1 = new Measurement(Instant.parse("2017-01-03T10:05:00.00Z"), 97.17, MeasurementType.SPO2);
-        Measurement sample2 = new Measurement(Instant.parse("2017-01-03T10:10:00.00Z"), 95.08, MeasurementType.SPO2);
-        Measurement sample3 = new Measurement(Instant.parse("2017-01-03T10:05:00.00Z"), 35.79, MeasurementType.TEMP);
-        Measurement sample4 = new Measurement(Instant.parse("2017-01-03T10:10:00.00Z"), 35.01, MeasurementType.TEMP);
+        Measurement sample1 = new Measurement(Instant.parse("2017-01-03T10:05:00.00Z"), 96.49, MeasurementType.SPO2);
+        Measurement sample2 = new Measurement(Instant.parse("2017-01-03T10:05:00.00Z"), 35.82, MeasurementType.TEMP);
 
         Map<MeasurementType, List<Measurement>> result = underTest.sample(Instant.parse("2017-01-03T10:00:00.00Z"), input);
         assertThat(result).containsOnlyKeys(MeasurementType.SPO2, MeasurementType.TEMP);
 
         List<Measurement> spo2Measurements = result.get(MeasurementType.SPO2);
-        assertThat(spo2Measurements).containsExactly(sample1, sample2);
+        assertThat(spo2Measurements).containsExactly(sample1);
 
         List<Measurement> tempMeasurements = result.get(MeasurementType.TEMP);
-        assertThat(tempMeasurements).containsExactly(sample3, sample4);
+        assertThat(tempMeasurements).containsExactly(sample2);
 
     }
 
@@ -56,21 +54,23 @@ class MeasurementSamplerTest {
 
     @Test
     void sampleOnLimit() {
-        Measurement measurement1 = new Measurement(Instant.parse("2017-01-03T10:05:00.00Z"), 35.79, MeasurementType.TEMP);
-        List<Measurement> input = Collections.singletonList(measurement1);
+        Measurement measurement1 = new Measurement(Instant.parse("2017-01-03T10:04:50.00Z"), 37.12, MeasurementType.TEMP);
+        Measurement measurement2 = new Measurement(Instant.parse("2017-01-03T10:05:00.00Z"), 35.79, MeasurementType.TEMP);
+        List<Measurement> input = Arrays.asList(measurement2, measurement1);
         Map<MeasurementType, List<Measurement>> result = underTest.sample(Instant.parse("2017-01-03T10:00:00.00Z"), input);
 
         assertThat(result).containsOnlyKeys(MeasurementType.TEMP);
 
         List<Measurement> tempMeasurements = result.get(MeasurementType.TEMP);
-        assertThat(tempMeasurements).containsExactly(new Measurement(Instant.parse("2017-01-03T10:05:00.00Z"), 35.79, MeasurementType.TEMP));
+        assertThat(tempMeasurements).containsExactly(new Measurement(Instant.parse("2017-01-03T10:05:00.00Z"), 37.12, MeasurementType.TEMP));
 
     }
 
     @Test
     void sampleOnStartOfSampling() {
         Measurement measurement1 = new Measurement(Instant.parse("2017-01-03T10:05:00.00Z"), 35.79, MeasurementType.TEMP);
-        List<Measurement> input = Collections.singletonList(measurement1);
+        Measurement measurement2 = new Measurement(Instant.parse("2017-01-03T10:05:01.00Z"), 36.79, MeasurementType.TEMP);
+        List<Measurement> input = Arrays.asList(measurement1, measurement2);
 
         Map<MeasurementType, List<Measurement>> result = underTest.sample(Instant.parse("2017-01-03T10:05:00.00Z"), input);
         assertThat(result).isEmpty();
@@ -79,10 +79,13 @@ class MeasurementSamplerTest {
     @Test
     void sampleIntervalWithoutValue() {
         Measurement measurement1 = new Measurement(Instant.parse("2017-01-03T10:02:01.00Z"), 35.82, MeasurementType.HEART_RATE);
-        Measurement measurement2 = new Measurement(Instant.parse("2017-01-03T10:19:08.00Z"), 35.01, MeasurementType.HEART_RATE);
-        Measurement measurement3 = new Measurement(Instant.parse("2017-01-03T10:19:06.00Z"), 35.02, MeasurementType.HEART_RATE);
+        Measurement measurement2 = new Measurement(Instant.parse("2017-01-03T10:02:02.00Z"), 34.12, MeasurementType.HEART_RATE);
+        Measurement measurement3 = new Measurement(Instant.parse("2017-01-03T10:19:08.00Z"), 35.01, MeasurementType.HEART_RATE);
+        Measurement measurement4 = new Measurement(Instant.parse("2017-01-03T10:19:09.00Z"), 36.47, MeasurementType.HEART_RATE);
+        Measurement measurement5 = new Measurement(Instant.parse("2017-01-03T10:19:06.00Z"), 35.02, MeasurementType.HEART_RATE);
+        Measurement measurement6 = new Measurement(Instant.parse("2017-01-03T10:19:07.00Z"), 36.02, MeasurementType.HEART_RATE);
 
-        List<Measurement> input = Arrays.asList(measurement2, measurement1, measurement3);
+        List<Measurement> input = Arrays.asList(measurement2, measurement1, measurement3, measurement4, measurement5, measurement6);
         Map<MeasurementType, List<Measurement>> result = underTest.sample(Instant.parse("2017-01-03T10:00:00.00Z"), input);
 
         assertThat(result).containsOnlyKeys(MeasurementType.HEART_RATE);
@@ -95,10 +98,12 @@ class MeasurementSamplerTest {
     @Test
     void sampleIgnoreMeasurementBeforeStart() {
         Measurement measurement1 = new Measurement(Instant.parse("2017-01-03T09:02:01.00Z"), 35.82, MeasurementType.TEMP);
-        Measurement measurement2 = new Measurement(Instant.parse("2017-01-03T10:19:08.00Z"), 35.01, MeasurementType.SPO2);
-        Measurement measurement3 = new Measurement(Instant.parse("2017-01-03T09:18:07.00Z"), 35.73, MeasurementType.SPO2);
+        Measurement measurement2 = new Measurement(Instant.parse("2017-01-03T09:03:01.00Z"), 35.12, MeasurementType.TEMP);
+        Measurement measurement3 = new Measurement(Instant.parse("2017-01-03T10:19:08.00Z"), 35.01, MeasurementType.SPO2);
+        Measurement measurement4 = new Measurement(Instant.parse("2017-01-03T10:19:09.00Z"), 35.02, MeasurementType.SPO2);
+        Measurement measurement5 = new Measurement(Instant.parse("2017-01-03T09:18:07.00Z"), 35.73, MeasurementType.SPO2);
 
-        List<Measurement> input = Arrays.asList(measurement2, measurement1, measurement3);
+        List<Measurement> input = Arrays.asList(measurement2, measurement1, measurement3, measurement4, measurement5);
         Map<MeasurementType, List<Measurement>> result = underTest.sample(Instant.parse("2017-01-03T10:00:00.00Z"), input);
 
         assertThat(result).containsOnlyKeys(MeasurementType.SPO2);

@@ -72,7 +72,9 @@ public class MeasurementSampler {
         //Create one ordered list with sampled measurements for every measurement type
         measurementsPerMeasurementsType.forEach((measurementType, measurements) -> {
             List<Measurement> sampledMeasurements = createSampledMeasurements(grid, measurements);
-            resultMap.put(measurementType, Collections.unmodifiableList(sampledMeasurements));
+            if (!sampledMeasurements.isEmpty()) {
+                resultMap.put(measurementType, Collections.unmodifiableList(sampledMeasurements));
+            }
         });
 
         return Collections.unmodifiableMap(resultMap);
@@ -88,16 +90,19 @@ public class MeasurementSampler {
     private List<Measurement> createSampledMeasurements(List<Instant> grid, List<Measurement> validUnsampledMeasurements) {
 
         //Find the last measurement in every interval
-        Map<Instant, Measurement> lastMeasurementPerInterval = validUnsampledMeasurements.stream()
-                .collect(Collectors.toMap(m -> getGridTime(m, grid),
-                        Function.identity(),
-                        BinaryOperator.maxBy(Comparator.comparing(Measurement::getMeasurementTime))));
+        Map<Instant, List<Measurement>> measurementsPerInterval = validUnsampledMeasurements.stream()
+                .collect(Collectors.groupingBy(m -> getGridTime(m, grid)));
 
-        //Create ordered list with sampled measurements
-        return lastMeasurementPerInterval.entrySet().stream()
-                .map(e -> new Measurement(e.getKey(), e.getValue().getMeasurementValue(), e.getValue().getType()))
-                .sorted(Comparator.comparing(Measurement::getMeasurementTime))
-                .collect(Collectors.toList());
+        List resultList = new ArrayList(measurementsPerInterval.size());
+        measurementsPerInterval.forEach((gridTime, measurements) -> {
+            if (measurements.size() > 1) {
+                measurements.sort(Comparator.comparing(Measurement::getMeasurementTime));
+                Measurement secondLastMeasurement = measurements.get(measurements.size() - 2);
+                resultList.add(new Measurement(gridTime, secondLastMeasurement.getMeasurementValue(), secondLastMeasurement.getType()));
+            }
+        });
+
+        return resultList;
     }
 
     /**
